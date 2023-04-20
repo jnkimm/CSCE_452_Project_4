@@ -1,3 +1,6 @@
+import math
+import numpy as np
+
 def quaternion_from_euler(ai, aj, ak):
     ai /= 2.0
     aj /= 2.0
@@ -20,3 +23,24 @@ def quaternion_from_euler(ai, aj, ak):
     q[3] = cj*cc + sj*ss
 
     return q
+
+def euler_from_quat(w,x,y,z):
+    ysqr = y * y
+
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + ysqr)
+    X = np.arctan2(t0, t1)
+
+    t2 = +2.0 * (w * y - z * x)
+    t2 = np.where(t2>+1.0,+1.0,t2)
+    #t2 = +1.0 if t2 > +1.0 else t2
+
+    t2 = np.where(t2<-1.0, -1.0, t2)
+    #t2 = -1.0 if t2 < -1.0 else t2
+    Y = np.arcsin(t2)
+
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (ysqr + z * z)
+    Z = np.arctan2(t3, t4)
+
+    return (X,Y,Z)
