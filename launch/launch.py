@@ -75,6 +75,8 @@ def generate_launch_description():
 
     # starting node
     ld.add_action(robot_node)
+    move_robot_node = ExecuteProcess(cmd = ['python3', 'project_4/robot.py'])
+    ld.add_action(move_robot_node)
     setup_map = ExecuteProcess(cmd = ['python3', 'project_4/setup_map.py'])
     ld.add_action(setup_map)
     
