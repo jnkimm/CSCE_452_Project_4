@@ -27,6 +27,7 @@ class Control(Node):
         self.curr_l = Float64()
         self.curr_r.data = 0.0
         self.curr_l.data = 0.0
+
         self.vel_right = self.create_subscription(Float64,"/vr",self.change_right,10)
         self.vel_left = self.create_subscription(Float64,"/vl",self.change_left,10)
         self.get_map = self.create_subscription(OccupancyGrid,"/map",self.get_map,10)
@@ -36,9 +37,12 @@ class Control(Node):
         self.curr_trans = TransformStamped()
 
         self.robot_char = load_rob(file_name)
+        self.err_l = np.random.normal(1,math.sqrt(self.robot_char['wheels']['error_variance_left']))
+        self.err_r = np.random.normal(1,math.sqrt(self.robot_char['wheels']['error_variance_right']))
         self.old_time_l = 0.0
         self.old_time_r = 0.0
         self.timer = self.create_timer(0.1,self.broadcast)
+        self.error_timer = self.create_timer(self.robot_char['wheels']['error_update_rate'],self.error_calc)
         qos_profile = QoSProfile(depth=10)
         self.tf_broadcaster = TransformBroadcaster(self,qos=qos_profile)
 
@@ -47,6 +51,10 @@ class Control(Node):
         # # self.target_frame = self.declare_parameter('base_link','robot_state_publisher')
         # self.tf_buffer = Buffer()
         # self.tf_listener = TransformListener(self.tf_buffer,self)
+    def error_calc(self):
+        self.err_l = np.random.normal(1,math.sqrt(self.robot_char['wheels']['error_variance_left']))
+        self.err_r = np.random.normal(1,math.sqrt(self.robot_char['wheels']['error_variance_right']))
+
     def get_map(self,data=OccupancyGrid()):
         self.O_grid = data
 
@@ -56,10 +64,12 @@ class Control(Node):
 
     def change_right(self,data=Float64()):
         self.curr_r = data
+        self.curr_r.data *= self.err_r
         self.old_time_r = time()
     
     def change_left(self,data=Float64()):
         self.curr_l = data
+        self.curr_l.data *= self.err_l
         self.old_time_l = time()
         # print("about to call broadcast")
         # self.broadcast()
@@ -140,7 +150,7 @@ class Control(Node):
             robot_cells = [[x,y]]
 
             # Checking the 4 faces of the circle
-            print((transformation[0]+.2))
+            # print((transformation[0]+.2))
             if (t.transform.translation.x+.2)/self.O_grid.info.resolution < (x+1):
                 robot_cells.append([x+1,y])
             if (t.transform.translation.x-.2)/self.O_grid.info.resolution < (x):
@@ -158,9 +168,10 @@ class Control(Node):
                 robot_cells.append([x-1,y-1])
             if (math.sqrt(((x+1)-x)**2+(y-y)**2)) < .2/self.O_grid.info.resolution: #bottom right
                 robot_cells.append([x+1,y-1])
-            print(robot_cells)
+            # print(robot_cells)
 
             for i in robot_cells:
+                # print(f"in cell {i}")
                 if (self.O_grid.data[i[0]+i[1]*self.O_grid.info.width] == 1):
                     return
 

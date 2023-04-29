@@ -17,6 +17,7 @@ from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import PointCloud
 from geometry_msgs.msg import Point32
 from parse_map import parse_map
+import random
 
 def load_rob(file_name):
     with open("/home/jnkimmelman/ros2_ws/src/project_4/"+file_name) as f:
@@ -62,6 +63,14 @@ class Laser(Node):
         start_y = self.curr_trans.transform.translation.y + self.robot_char['body']['radius']*math.sin(origin_state_rot[2])
         while i < (self.robot_char['laser']['angle_max']+increment):
             j = self.robot_char['laser']['range_min']
+            if random.randint(1,10) == 1:
+                point = Point32()
+                point.x = float('nan')
+                point.y = float('nan')
+                point.z = float(0)
+                curr_scan.points.append(point)
+                i += increment
+                continue
             while j < (self.robot_char['laser']['range_max']+0.01):
                 pot_x = start_x + j*math.cos(origin_state_rot[2]+i) 
                 pot_y = start_y + j*math.sin(origin_state_rot[2]+i) 
@@ -76,9 +85,10 @@ class Laser(Node):
                 print(f"({pot_x},{pot_y}),({ind_x},{ind_y}),{i},{j},{self.O_grid.info.resolution}")
                 if (self.O_grid.data[ind_x+((ind_y*self.O_grid.info.width))] == 1):
                     print(f"{ind_x+ind_y*self.O_grid.info.width}")
+                    err = np.random.normal(0,math.sqrt(self.robot_char['laser']['error_variance']))
                     point = Point32()
-                    point.x = pot_x
-                    point.y = pot_y
+                    point.x = pot_x + err*math.cos(origin_state_rot[2]+i) 
+                    point.y = pot_y + err*math.sin(origin_state_rot[2]+i) 
                     point.z = float(0)
                     curr_scan.points.append(point)
                     break
