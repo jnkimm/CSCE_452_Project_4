@@ -1,0 +1,26 @@
+# Getting robot origin cell
+x = math.floor(transformation[0]/self.O_grid.info.resolution)
+y = math.floor(transformation[1]/self.O_grid.info.resolution)
+
+robot_cells = [[x,y]]
+
+# Checking the 4 faces of the circle
+print((transformation[0]+.2))
+if (transformation[0]+.2)/self.O_grid.info.resolution < (x+1):
+    robot_cells.append([x+1,y])
+if (transformation[0]-.2)/self.O_grid.info.resolution < (x):
+    robot_cells.append([x-1,y])
+if (transformation[1]+.2)/self.O_grid.info.resolution < (y+1):
+    robot_cells.append([x,y+1])
+if (transformation[1]-.2)/self.O_grid.info.resolution < (y):
+    robot_cells.append([x,y-1])
+# Checking the 4 courners of the cell
+if (math.sqrt((x-x)**2+((y+1)-y)**2)) < .2/self.O_grid.info.resolution: #top left
+    robot_cells.append([x-1,y+1])
+if (math.sqrt(((x+1)-x)**2+((y+1)-y)**2)) < .2/self.O_grid.info.resolution: #top right
+    robot_cells.append([x+1,y+1])
+if (math.sqrt((x-x)**2+(y-y)**2)) < .2/self.O_grid.info.resolution: #bottom left
+    robot_cells.append([x-1,y-1])
+if (math.sqrt(((x+1)-x)**2+(y-y)**2)) < .2/self.O_grid.info.resolution: #bottom right
+    robot_cells.append([x+1,y-1])
+print(robot_cells)
