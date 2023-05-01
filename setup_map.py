@@ -7,11 +7,60 @@ from geometry_msgs.msg import Pose,TransformStamped
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from rclpy.qos import QoSProfile
-from q import quaternion_from_euler
 from tf2_msgs.msg import TFMessage
-from parse_map import parse_map,load_map
+import math
+import numpy as np
 
+def load_map(file_name):
+    with open("/home/evie/ros2_ws/src/project_4/"+file_name) as f:
+        map = yaml.safe_load(f)
+    return map
 
+def parse_map(file_name):
+    file = load_map(file_name)
+    O_grid = OccupancyGrid()
+    j = 0;
+    k = 0;
+    O_grid.info.resolution = file['resolution']
+    # width_found = False
+    for i in file['map']:
+        if i == "#":
+            O_grid.data.append(1)
+        elif i == ".":
+            O_grid.data.append(0)
+        elif i == "\n":
+            O_grid.info.width = j-1
+            j = 0
+            k += 1
+            # width_found = True
+        j += 1
+    # print(self.O_grid.info.width)
+    O_grid.info.height = k+1
+    # print(self.O_grid.info.height)
+    return O_grid
+
+def quaternion_from_euler(ai, aj, ak):
+    ai /= 2.0
+    aj /= 2.0
+    ak /= 2.0
+    ci = math.cos(ai)
+    si = math.sin(ai)
+    cj = math.cos(aj)
+    sj = math.sin(aj)
+    ck = math.cos(ak)
+    sk = math.sin(ak)
+    cc = ci*ck
+    cs = ci*sk
+    sc = si*ck
+    ss = si*sk
+
+    q = np.empty((4, ))
+    q[0] = cj*sc - sj*cs
+    q[1] = cj*ss + sj*cc
+    q[2] = cj*cs - sj*sc
+    q[3] = cj*cc + sj*ss
+
+    return q
 
 class Init_Map(Node):
     def __init__(self,file_name):
@@ -19,8 +68,6 @@ class Init_Map(Node):
 
         self.file = load_map(file_name)
         self.O_grid = OccupancyGrid()
-        self.O_grid.header.stamp = self.get_clock().now().to_msg()
-        self.O_grid.header.frame_id = 'map_frame'
         origin = Pose()
         origin.position.x = 0.0
         origin.position.y = 0.0
@@ -28,7 +75,6 @@ class Init_Map(Node):
         self.O_grid.info.origin = origin
         self.O_grid.info.resolution = self.file['resolution']
         self.O_grid = parse_map(file_name)
-
         self.map_pub = self.create_publisher(OccupancyGrid,'/map',10)
 
         print("about to publish")
@@ -72,6 +118,8 @@ class Init_Map(Node):
         # self.init_tf_publisher.publish(tf)
 
     def timer_callback(self):
+        self.O_grid.header.stamp = self.get_clock().now().to_msg()
+        self.O_grid.header.frame_id = 'map_frame'
         self.map_pub.publish(self.O_grid)
 
 
