@@ -13,7 +13,7 @@ import math
 import numpy as np
 from time import time
 from nav_msgs.msg import OccupancyGrid
-from sensor_msgs.msg import PointCloud
+from sensor_msgs.msg import PointCloud, LaserScan
 from geometry_msgs.msg import Point32
 import random
 
@@ -100,7 +100,8 @@ class Laser(Node):
         super().__init__("Laser_Scan_Node")
 
         self.tf_sub = self.create_subscription(TFMessage,"/tf",self.update_pose,10)
-        self.laser_pub = self.create_publisher(PointCloud,"/scan",10)
+        self.pc_pub = self.create_publisher(PointCloud,"/pc_scan",10)
+        self.laser_pub = self.create_publisher(LaserScan,'/scan',10)
 
         self.robot_char = load_rob(file_name)
 
@@ -115,13 +116,13 @@ class Laser(Node):
         self.timer = self.create_timer(self.robot_char['laser']['rate'],self.broadcast)
 
     def update_pose(self,data=TFMessage()):
+        print(data.transforms[0])
         self.curr_trans = data.transforms[0]
-        print(self.curr_trans)
+        #print(self.curr_trans)
 
-    # def get_map(self,data=OccupancyGrid()):
-    #     self.O_grid = data
 
     def broadcast(self):
+        laserscan = LaserScan()
         curr_scan = PointCloud()
         curr_scan.header.frame_id = 'map_frame'
         i = self.robot_char['laser']['angle_min']
@@ -153,9 +154,9 @@ class Laser(Node):
                 #     ind_y = 0
                 # else:
                 ind_y = round((pot_y - (pot_y % self.O_grid.info.resolution))/self.O_grid.info.resolution)
-                print(f"({pot_x},{pot_y}),({ind_x},{ind_y}),{i},{j},{self.O_grid.info.resolution}")
+                #print(f"({pot_x},{pot_y}),({ind_x},{ind_y}),{i},{j},{self.O_grid.info.resolution}")
                 if (self.O_grid.data[ind_x+((ind_y*self.O_grid.info.width))] == 1):
-                    print(f"{ind_x+ind_y*self.O_grid.info.width}")
+                    #print(f"{ind_x+ind_y*self.O_grid.info.width}")
                     err = np.random.normal(0,math.sqrt(self.robot_char['laser']['error_variance']))
                     point = Point32()
                     point.x = pot_x + err*math.cos(origin_state_rot[2]+i) 
@@ -165,7 +166,30 @@ class Laser(Node):
                     break
                 j += 0.01
             i += increment
-        self.laser_pub.publish(curr_scan)
+        self.pc_pub.publish(curr_scan)
+
+        origin_state = self.curr_trans.transform.translation
+
+        #point cloud to laser scan
+        laserscan.header.frame_id = "base_link"
+        laserscan.angle_min = self.robot_char['laser']['angle_min']
+        laserscan.angle_max = self.robot_char['laser']['angle_max']
+        laserscan.angle_increment = increment
+        laserscan.scan_time = 1.0
+        laserscan.range_min = self.robot_char['laser']['range_min']
+        laserscan.range_max = self.robot_char['laser']['range_max']
+
+        for i in curr_scan.points:
+            x = i.x
+            y = i.y
+            distance = math.sqrt((origin_state.x - x)**2 + (origin_state.y - y)**2)
+            laserscan.ranges.append(distance)
+        
+        self.laser_pub.publish(laserscan)
+
+        # Im pretty sure the reason the laserscan and point cloud are off is because the angles are off. but idk how to fix that
+        
+
                             
 
 
@@ -173,7 +197,7 @@ class Laser(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = Laser("normal.robot","brick.world")
+    node = Laser("normal.robot","windy.world")
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
